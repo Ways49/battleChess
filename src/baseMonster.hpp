@@ -109,11 +109,15 @@ protected:
     int ENE;        //能量值
     int MON;        //金钱数
 private:
+    friend class experiment;
+    friend class shootSkill;
     friend class accelerateAndMoveAgainSkill;
     friend class justAccelerateSelfSkill;
     friend class justAccelerateOtherSkill;
+    friend class removeSkill;
     friend class thumpSkill;
     friend class circleAttackSkill;
     friend class crossSlashSkill;
     friend class proBarrierSkill;
+
 };
