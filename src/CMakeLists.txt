@@ -12,4 +12,6 @@ add_executable(src
         main.cpp
         base.hpp
         monster.hpp
-        experiment.hpp)
+        experiment.hpp
+        skill.hpp
+        baseMonster.hpp)

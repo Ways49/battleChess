@@ -1,53 +1,77 @@
 #pragma once
-#include "base.hpp"
+#include "skill.hpp"
 #include <algorithm>
 #include <cmath>
+#include <cassert>
 #include <iostream>
+#include <vector>
 using namespace std;
 
-enum mobilityType{
-    quickSlide = 2,     //双格快速滑行
-    slowSlide = 1,      //单格滑行
-    quiet = 0,          //瘫痪
-    moment = -1         //瞬移
-};
-
-class baseMonster{
+//园区枪手
+class gunner : public baseMonster{
 public:
-    baseMonster(){
-        HP = 0;
-        ATK = 0;
-        MOB = 0;
-        PRO = 0;
+    gunner(int pos = 0) : baseMonster(3,1,1,pos){
+        //pass
     }
-    baseMonster(int HP,int ATK,int MOB){
-        this->HP = HP;
-        this->ATK = ATK;
-        this->MOB = MOB;
-        this->PRO = 0;
-    }
-    void attack(baseMonster& other){
-        //护盾
-        if(other.PRO >= ATK){
-            return;
-        }
-        const int DEHP = ATK - other.PRO;
-        //受伤
-        other.HP = max(0,other.HP - DEHP);
-        //存活反击
-        if(other.HP){
-            if(PRO >= other.ATK){
-                return;
-            }
-            const int RE_DEHP = other.ATK - PRO;
-            HP = max(0,HP - RE_DEHP);
-        }
+    void nextRound() override{
+        shoot.nextRound();
     }
 protected:
-    int HP;         //生命值
-    int PRO;        //护盾值
-    int ATK;        //攻击力
-    int MOB;        //机动性
-private:
-    friend class experiment;
+    shootSkill shoot;
+};
+
+//园区警犬
+class policeDog : public baseMonster{
+public:
+    policeDog(int pos = 0) : baseMonster(3,1,2,pos){
+        //pass
+    }
+    void nextRound() override{
+        accelerate.nextRound();
+    }
+protected:
+    accelerateSkill accelerate;
+};
+
+//园区武装直升机
+class gunship : public baseMonster{
+public:
+    gunship(int pos = 0) : baseMonster(5,2,2,pos){
+        //pass
+    }
+    void nextRound() override{
+        shoot.nextRound();
+        remove.nextRound();
+    }
+protected:
+    shootSkill shoot;
+    removeSkill remove;
+};
+
+//园区科技剑士
+class swordMan : public baseMonster{
+public:
+    swordMan(int pos = 0) : baseMonster(7,2,1,pos){
+        //pass
+    }
+    void nextRound(){
+        thump.nextRound();
+        circle.nextRound();
+    }
+protected:
+    thumpSkill thump;
+    circleAttackSkill circle;
+};
+
+//园区尖端战将
+class warrier : public baseMonster{
+public:
+    warrier(int pos = 0) : baseMonster(6,2,2,pos){
+        //pass
+    }
+    void nextRound(){
+        //todo
+    }
+protected:
+    //todo
 };
