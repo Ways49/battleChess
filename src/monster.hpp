@@ -10,10 +10,10 @@ using namespace std;
 //园区枪手
 class gunner : public baseMonster{
 public:
-    gunner(int pos = 0) : baseMonster(3,1,1,pos){
+    explicit gunner(int pos = 0) : baseMonster(3,1,1,pos){
         //pass
     }
-    void nextRound() override{
+    void nextRound(){
         shoot.nextRound();
     }
 protected:
@@ -23,23 +23,23 @@ protected:
 //园区警犬
 class policeDog : public baseMonster{
 public:
-    policeDog(int pos = 0) : baseMonster(3,1,2,pos){
+    explicit policeDog(int pos = 0) : baseMonster(3,1,2,pos){
         //pass
     }
-    void nextRound() override{
-        accelerate.nextRound();
+    void nextRound(){
+        accelerateAndMoveAgain.nextRound(*this);
     }
 protected:
-    accelerateSkill accelerate;
+    accelerateAndMoveAgainSkill accelerateAndMoveAgain;
 };
 
 //园区武装直升机
 class gunship : public baseMonster{
 public:
-    gunship(int pos = 0) : baseMonster(5,2,2,pos){
+    explicit gunship(int pos = 0) : baseMonster(5,2,2,pos){
         //pass
     }
-    void nextRound() override{
+    void nextRound(){
         shoot.nextRound();
         remove.nextRound();
     }
@@ -51,7 +51,7 @@ protected:
 //园区科技剑士
 class swordMan : public baseMonster{
 public:
-    swordMan(int pos = 0) : baseMonster(7,2,1,pos){
+    explicit swordMan(int pos = 0) : baseMonster(7,2,1,pos){
         //pass
     }
     void nextRound(){
@@ -59,19 +59,38 @@ public:
         circle.nextRound();
     }
 protected:
-    thumpSkill thump;
+    thumpSkill thump{};
     circleAttackSkill circle;
 };
 
 //园区尖端战将
 class warrier : public baseMonster{
 public:
-    warrier(int pos = 0) : baseMonster(6,2,2,pos){
+    explicit warrier(int pos = 0) : baseMonster(8,2,2,pos){
         //pass
     }
     void nextRound(){
-        //todo
+        cure.nextRound();
+        crossSlash.nextRound();
+        proBarrier.nextRound(*this);
     }
 protected:
-    //todo
+    cureSkill cure;
+    crossSlashSkill crossSlash;
+    proBarrierSkill proBarrier;
+};
+
+//园区无人车
+class driverlessCar : public baseMonster{
+public:
+    explicit driverlessCar(int pos) : baseMonster(3,1,2,pos){
+        //pass
+    }
+    void nextRound(baseMonster & actor){
+        justAccelerateSelf.nextRound(actor);
+        justAccelerateOther.nextRound(actor);
+    }
+protected:
+    justAccelerateSelfSkill justAccelerateSelf;
+    justAccelerateOtherSkill justAccelerateOther;
 };

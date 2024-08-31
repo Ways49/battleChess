@@ -1,6 +1,7 @@
 #pragma once
 #include "baseMonster.hpp"
 #include <vector>
+#define MAX_BUFF_SUM 2
 
 enum parkAreaSkill{
     shoot = 1,              //射击
@@ -14,17 +15,19 @@ enum parkAreaSkill{
 class shootSkill{
 public:
     shootSkill(){
-        used = true;
+        used = false;
     }
     bool canUseSkill() const{
         return !used;
     }
-    void useSkill(baseMonster& actor,baseMonster& other){
-        assert(!used);
-        actor.ATK++;
-        actor.attack(other);
-        actor.ATK--;
-        used = true;
+    bool useSkill(baseMonster& actor,baseMonster& other){
+        if(canUseSkill()){
+            actor.ATK++;
+            actor.attack(other);
+            actor.ATK--;
+            used = true;
+        }
+        return used;
     }
     void nextRound(){
         used = false;
@@ -34,36 +37,39 @@ protected:
 };
 
 //额外和加速移动
-class accelerateSkill{
+class accelerateAndMoveAgainSkill{
 public:
-    accelerateSkill(){
+    accelerateAndMoveAgainSkill(){
+        used = false;
         limit = false;
-        roundCnt = 0;
     }
-    bool canUseSkill(king& actorSideKing) const{
-        if(!limit){
-            return true;
-        }
-        return (roundCnt <= 1 && actorSideKing.ENE >= 1);
+    bool canUseSkill(baseMonster& actor,king& actorSideKing) const{
+        return !used && (!limit || actorSideKing.ENE >= 1) && (actor.BUFFSUM < MAX_BUFF_SUM);
     }
-    void useSkill(baseMonster& actor,king& actorSideKing,int toPos){
-        assert(getSlideMoveType(actor.POS,toPos) <= actor.MOB + (roundCnt > 0));
-        assert(roundCnt <= 1);
-        if(limit){
-            assert(actorSideKing.ENE >= 1);
-            actorSideKing.payEnergy(1);
-        }else{
+    bool useSkill(baseMonster& actor,king& actorSideKing,int toPos){
+        if(canUseSkill(actor,actorSideKing)){
+            if(limit){
+                actorSideKing.payEnergy(1);
+            }
+            actor.roundMoveSum++;
+            actor.MOB = (actor.roundMoveSum >= 2) ? actor.INIMOB + 1 : actor.INIMOB;
+            used = true;
             limit = true;
+            actor.BUFFSUM++;
         }
-        roundCnt++;
-        actor.POS = toPos;
+        return used;
     }
-    void nextRound(){
-        roundCnt = 0;
+    void nextRound(baseMonster& actor){
+        if(used){
+            used = false;
+            actor.MOB = actor.INIMOB;
+            actor.BUFFSUM--;
+        }
     }
 protected:
     bool limit;
-    int roundCnt;
+    bool used;
+    int remainingRound;
 };
 
 //拆迁
@@ -75,12 +81,14 @@ public:
     bool canUseSkill() const{
         return !used;
     }
-    void useSkill(baseMonster& actor,king& other){
-        assert(!used);
-        actor.ATK *= 3;
-        actor.attack(other);
-        actor.ATK /= 3;
-        used = true;
+    bool useSkill(baseMonster& actor,king& other){
+        if(canUseSkill()){
+            actor.ATK *= 3;
+            actor.attack(other);
+            actor.ATK /= 3;
+            used = true;
+        }
+        return used;
     }
     void nextRound(){
         used = false;
@@ -92,15 +100,18 @@ protected:
 //重击
 class thumpSkill{
 public:
-    bool canUseSkill() const{
-        return !used;
+    bool canUseSkill(king& other) const{
+        return !used && other.ENE >= 2;
     }
-    void useSkill(baseMonster& actor,king& other){
-        assert(!used);
-        actor.ATK *= 2;
-        actor.attack(other);
-        actor.ATK /= 2;
-        used = true;
+    bool useSkill(baseMonster& actor,king& other){
+        if(canUseSkill(other)){
+            other.payEnergy(2);
+            actor.ATK <<= 1;
+            actor.attack(other);
+            actor.ATK >>= 1;
+            used = true;
+        }
+        return false;
     }
     void nextRound(){
         used = false;
@@ -115,15 +126,18 @@ public:
     circleAttackSkill(){
         used = false;
     }
-    bool canUseSkill() const{
-        return !used;
+    bool canUseSkill(king& actorSideKing) const{
+        return !used && actorSideKing.ENE >= 1;
     }
-    void useSkill(baseMonster& actor,const vector<baseMonster*>& others){
-        assert(!used);
-        for(baseMonster* pOther : others){
-            actor.attack(*pOther);
+    bool useSkill(baseMonster& actor,king& actorSideKing,const vector<baseMonster*>& others){
+        if(canUseSkill(actorSideKing)){
+            actorSideKing.payEnergy(1);
+            for(baseMonster* pOther : others){
+                actor.attack(*pOther);
+            }
+            used = true;
         }
-        used = true;
+        return used;
     }
     void nextRound(){
         used = false;
@@ -131,4 +145,167 @@ public:
 protected:
     bool used;
 };
+
+//治疗
+class cureSkill{
+public:
+    cureSkill(){
+        used = false;
+    }
+    bool canUseSkill() const{
+        return !used;
+    }
+    bool useSkill(baseMonster& actor,baseMonster& other){
+        if(canUseSkill()){
+            other.HP = min(other.HP + 1,other.MAXHP);
+            used = true;
+        }
+        return used;
+    }
+    void nextRound(){
+        used = false;
+    }
+protected:
+    bool used;
+};
+
+//十字斩
+class crossSlashSkill{
+public:
+    crossSlashSkill(){
+        used = false;
+    }
+    bool canUseSkill(king& actorSideKing) const{
+        return !used && actorSideKing.ENE >= 3;
+    }
+    bool useSkill(baseMonster& actor,king& actorSideKing,const vector<baseMonster*>& others){
+        if(canUseSkill(actorSideKing)){
+            actorSideKing.payEnergy(3);
+            for(baseMonster* pOther : others){
+                actor.attack(*pOther);
+            }
+            used = true;
+        }
+        return used;
+    }
+    void nextRound(){
+        used = false;
+    }
+protected:
+    bool used;
+};
+
+//保护屏障
+class proBarrierSkill{
+public:
+    proBarrierSkill(){
+        remainingRound = 0;
+        used = false;
+    }
+    bool canUseSkill(baseMonster& actor,king& actorSideKing) const{
+        return !used && actorSideKing.ENE >= 2 && (actor.BUFFSUM < MAX_BUFF_SUM);
+    }
+    bool useSkill(baseMonster& actor,king& actorSideKing){
+        if(canUseSkill(actor,actorSideKing)){
+            if(actorSideKing.payEnergy(2)){
+                remainingRound = 3;
+                actor.MAXDEHP = 1;
+                used = true;
+                actor.BUFFSUM++;
+            }
+        }
+        return used;
+    }
+    void nextRound(baseMonster& actor){
+        if(remainingRound <= 0){
+            remainingRound = 0;
+        }else{
+            remainingRound--;
+            if(remainingRound <= 0){
+                actor.MAXDEHP = inf;
+                actor.BUFFSUM = (actor.BUFFSUM <= 0) ? 0 : actor.BUFFSUM - 1;
+            }
+        }
+    }
+protected:
+    bool used;
+    int remainingRound;
+};
+
+class justAccelerateSelfSkill{
+public:
+    justAccelerateSelfSkill(){
+        remainingRound = 0;
+        used = false;
+    }
+    bool canUseSkill(baseMonster& actor,king& actorSideKing) const{
+        return !used && actorSideKing.ENE >= 1 && (actor.BUFFSUM < MAX_BUFF_SUM);
+    }
+    bool useSkill(baseMonster& actor,king& actorSideKing){
+        if(canUseSkill(actor,actorSideKing)){
+            if(remainingRound <= 0){
+                actor.BUFFSUM++;
+            }
+            actorSideKing.payEnergy(1);
+            actor.MOB += 1;
+            remainingRound = 3;
+            used = true;
+        }
+        return used;
+    }
+    void nextRound(baseMonster& actor){
+        if(remainingRound <= 0){
+            remainingRound = 0;
+        }else{
+            remainingRound--;
+            if(remainingRound <= 0){
+                actor.MOB = actor.INIMOB;
+                actor.BUFFSUM = (actor.BUFFSUM <= 0) ? 0 : actor.BUFFSUM - 1;
+            }
+        }
+        used = false;
+    }
+protected:
+    bool used;
+    int remainingRound;
+};
+
+class justAccelerateOtherSkill{
+public:
+    justAccelerateOtherSkill(){
+        remainingRound = 0;
+        used = false;
+    }
+    bool canUseSkill(baseMonster& actor,king& actorSideKing) const{
+        return !used && actorSideKing.ENE >= 1 && (actor.BUFFSUM < MAX_BUFF_SUM);
+    }
+    bool useSkill(baseMonster& actor,king& actorSideKing){
+        if(canUseSkill(actor,actorSideKing)){
+            if(remainingRound <= 0){
+                actor.BUFFSUM++;
+            }
+            actorSideKing.payEnergy(1);
+            actor.MOB += 1;
+            remainingRound = 4;
+            used = true;
+        }
+        return used;
+    }
+    void nextRound(baseMonster& actor){
+        if(remainingRound <= 0){
+            remainingRound = 0;
+        }else{
+            remainingRound--;
+            if(remainingRound <= 0){
+                actor.MOB = actor.INIMOB;
+                actor.BUFFSUM = (actor.BUFFSUM <= 0) ? 0 : actor.BUFFSUM - 1;
+            }
+        }
+        used = false;
+    }
+protected:
+    bool used;
+    int remainingRound;
+};
+
 
